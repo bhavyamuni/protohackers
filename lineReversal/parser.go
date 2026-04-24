@@ -15,8 +15,7 @@ const (
 	AckMessageType     MessageType = "ack"
 )
 
-type Message interface {
-}
+type Message interface{}
 
 type ConnectMessage struct {
 	MessageType
@@ -41,15 +40,15 @@ type AckMessage struct {
 }
 
 func (m *AckMessage) String() string {
-	return fmt.Sprintf("/ack/%d/%d/\n", m.Session, m.Length)
+	return fmt.Sprintf("/ack/%d/%d/", m.Session, m.Length)
 }
 
 func (m *CloseMessage) String() string {
-	return fmt.Sprintf("/close/%d/\n", m.Session)
+	return fmt.Sprintf("/close/%d/", m.Session)
 }
 
 func (m *DataMessage) String() string {
-	return fmt.Sprintf("/data/%d/%s/\n", m.Session, m.Data)
+	return fmt.Sprintf("/data/%d/%s/", m.Session, m.Data)
 }
 
 func ParseMessage(message string) (Message, error) {
@@ -83,6 +82,8 @@ func ParseMessage(message string) (Message, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		fmt.Println("chunks: ", messageChunks[4])
 		return &DataMessage{
 			MessageType: DataMessageType,
 			Session:     session,
@@ -135,7 +136,19 @@ func SplitCommand(cmd string) []string {
 	}
 	// Add the last segment
 	result = append(result, current.String())
+
+	fmt.Println("Split: ", result)
 	return result
+}
+
+func ReverseAllLines(s string) string {
+	lines := strings.Split(s, "\n")
+
+	for ix, line := range lines {
+		lines[ix] = ReverseString(line)
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 func ReverseString(s string) string {

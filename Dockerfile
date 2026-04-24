@@ -7,6 +7,7 @@ COPY go.mod ./
 RUN go mod download && go mod verify
 COPY server/ ./server/
 COPY speedDaemon/ ./speedDaemon/
+COPY lineReversal/ ./lineReversal/
 COPY main.go .
 RUN go build -v -o /run-app .
 
@@ -21,5 +22,6 @@ EXPOSE  10003
 EXPOSE  10004
 EXPOSE  10005
 EXPOSE  10006
+EXPOSE  10007
 
 CMD ["run-app"]

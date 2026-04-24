@@ -47,8 +47,6 @@ func (s *LineReversalServer) Start(port string) error {
 			fmt.Println("Error reading UDP packet:", err)
 			continue
 		}
-		fmt.Println("Received message:", string(buffer[:n]), "from", addr)
-
 		message, err := ParseMessage(string(buffer[:n]))
 		if err != nil {
 			fmt.Println("Error parsing message:", err)
@@ -98,9 +96,11 @@ func (s *LineReversalServer) dataMessage(message *DataMessage, conn *net.UDPConn
 		Session: message.Session,
 		Length:  int64(len(data)),
 	}
+
 	ackMessageString := ackMessage.String()
-	conn.WriteToUDP([]byte(ackMessageString), addr)
-	reversedData := ReverseString(data)
+	conn.WriteToUDP([]byte(ackMessageString+"\n"), addr)
+
+	reversedData := ReverseAllLines(data)
 	messageSent := SendDataMessage(message.Session, reversedData, conn, addr)
 	s.messagesSent[message.Session] += messageSent
 }
@@ -144,7 +144,8 @@ func SendDataMessage(session int64, data string, conn *net.UDPConn, addr *net.UD
 		Data:    data,
 	}
 	dataMessageString := dataMessage.String()
-	_, err := conn.WriteToUDP([]byte(dataMessageString), addr)
+	_, err := conn.WriteToUDP([]byte(dataMessageString+"\n"), addr)
+	fmt.Println("Sending data message ", dataMessageString, addr)
 	if err != nil {
 		fmt.Println("Error sending data message:", err)
 		return ""
