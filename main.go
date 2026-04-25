@@ -22,7 +22,7 @@ func main() {
 	go budgetchat.NewBudgetChatServer().Start(":10003")
 	go unusualdatabase.NewUnusualDatabaseServer().Start(":10004")
 	go mobinthemiddle.NewMobInTheMiddleServer().Start(":10005")
-	go speedDaemon.NewSpeedDaemonServer().Start(":10006")
+	go speeddaemon.NewSpeedDaemonServer().Start(":10006")
 	go lineReversal.NewLineReversalServer().Start(":10007")
 
 	select {}
