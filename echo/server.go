@@ -1,13 +1,15 @@
-package server
+package echo
 
 import (
 	"io"
 	"log"
 	"net"
+
+	"github.com/BhavyaMuni/protohackers/server"
 )
 
 type EchoServer struct {
-	BaseServer
+	server.BaseServer
 }
 
 func NewEchoServer() *EchoServer {

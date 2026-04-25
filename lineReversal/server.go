@@ -3,12 +3,9 @@ package lineReversal
 import (
 	"fmt"
 	"net"
-
-	"github.com/BhavyaMuni/protohackers/server"
 )
 
 type LineReversalServer struct {
-	server.BaseServer
 	sessions map[string]*LCRPSession
 }
 

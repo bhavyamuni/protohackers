@@ -1,4 +1,4 @@
-package server
+package unusualdatabase
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 )
 
 type UnusualDatabaseServer struct {
-	BaseServer
 	Database map[string]string
 }
 
@@ -26,7 +25,6 @@ func (s *UnusualDatabaseServer) Start(port string) error {
 		return err
 	}
 
-	// Create a UDP listener
 	conn, err := net.ListenUDP("udp", udpAddr)
 	if err != nil {
 		fmt.Println("Error listening on UDP:", err)
@@ -37,7 +35,6 @@ func (s *UnusualDatabaseServer) Start(port string) error {
 	fmt.Println("UDP server listening on", udpAddr)
 
 	buffer := make([]byte, 1024)
-
 	log.Println("Database:", s.Database)
 
 	for {
@@ -47,8 +44,7 @@ func (s *UnusualDatabaseServer) Start(port string) error {
 			continue
 		}
 		log.Println("Received request from", addr, ":", string(buffer[:n]))
-		received := string(buffer[:n])
-		response := s.handleDatabaseRequest(received)
+		response := s.handleDatabaseRequest(string(buffer[:n]))
 		conn.WriteTo([]byte(response), addr)
 		log.Println("Sent response to", addr, ":", response)
 	}
@@ -57,17 +53,15 @@ func (s *UnusualDatabaseServer) Start(port string) error {
 func (s *UnusualDatabaseServer) handleDatabaseRequest(request string) string {
 	if strings.Contains(request, "=") {
 		parts := strings.SplitN(request, "=", 2)
-		key := parts[0]
-		value := parts[1]
+		key, value := parts[0], parts[1]
 		if key == "version" {
 			return ""
 		}
 		s.Database[key] = value
 		return ""
-	} else {
-		if value, ok := s.Database[request]; ok {
-			return request + "=" + value
-		}
-		return ""
 	}
+	if value, ok := s.Database[request]; ok {
+		return request + "=" + value
+	}
+	return ""
 }

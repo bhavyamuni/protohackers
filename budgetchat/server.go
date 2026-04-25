@@ -1,4 +1,4 @@
-package server
+package budgetchat
 
 import (
 	"bufio"
@@ -7,14 +7,16 @@ import (
 	"net"
 	"regexp"
 	"strings"
+
+	"github.com/BhavyaMuni/protohackers/server"
 )
 
 type BudgetChatServer struct {
-	BaseServer
-	Users []User
+	server.BaseServer
+	Users []user
 }
 
-type User struct {
+type user struct {
 	connection *net.Conn
 	username   string
 }
@@ -22,7 +24,7 @@ type User struct {
 func NewBudgetChatServer() *BudgetChatServer {
 	bcs := &BudgetChatServer{}
 	bcs.HandleConnectionFunc = bcs.handleConnection
-	bcs.Users = make([]User, 0)
+	bcs.Users = make([]user, 0)
 	return bcs
 }
 
@@ -39,39 +41,38 @@ func (s *BudgetChatServer) handleConnection(conn net.Conn) {
 		return
 	}
 	currUsers := s.listUsers()
-	s.Users = append(s.Users, User{connection: &conn, username: name})
+	s.Users = append(s.Users, user{connection: &conn, username: name})
 	conn.Write([]byte("* The room contains: " + strings.Join(currUsers, ", ") + "\n"))
 	s.broadcast("* "+name+" has entered the room\n", &conn)
 
 	for scanner.Scan() {
 		message := scanner.Text()
-		messageToSend := fmt.Sprintf("[%s] %s\n", name, message)
-		s.broadcast(messageToSend, &conn)
+		s.broadcast(fmt.Sprintf("[%s] %s\n", name, message), &conn)
 	}
 
 	defer s.userLeft(&conn)
 }
 
 func (s *BudgetChatServer) broadcast(message string, currConn *net.Conn) {
-	for _, user := range s.Users {
-		if user.connection != currConn {
-			(*user.connection).Write([]byte(message))
+	for _, u := range s.Users {
+		if u.connection != currConn {
+			(*u.connection).Write([]byte(message))
 		}
 	}
 }
 
 func (s *BudgetChatServer) listUsers() []string {
 	var users []string
-	for _, user := range s.Users {
-		users = append(users, user.username)
+	for _, u := range s.Users {
+		users = append(users, u.username)
 	}
 	return users
 }
 
 func (s *BudgetChatServer) userLeft(conn *net.Conn) {
-	for i, user := range s.Users {
-		if user.connection == conn {
-			s.broadcast("* "+user.username+" has left the room\n", conn)
+	for i, u := range s.Users {
+		if u.connection == conn {
+			s.broadcast("* "+u.username+" has left the room\n", conn)
 			s.Users = append(s.Users[:i], s.Users[i+1:]...)
 			break
 		}

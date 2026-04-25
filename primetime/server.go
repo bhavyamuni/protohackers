@@ -1,4 +1,4 @@
-package server
+package primetime
 
 import (
 	"bufio"
@@ -8,18 +8,20 @@ import (
 	"math/big"
 	"net"
 	"strconv"
+
+	"github.com/BhavyaMuni/protohackers/server"
 )
 
-type PrimeTimeInt struct {
+type primeTimeInt struct {
 	big.Int
 }
 
-type PrimeTimeRequest struct {
+type primeTimeRequest struct {
 	Method *string       `json:"method"`
-	Number *PrimeTimeInt `json:"number"`
+	Number *primeTimeInt `json:"number"`
 }
 
-func (b *PrimeTimeInt) UnmarshalJSON(data []byte) error {
+func (b *primeTimeInt) UnmarshalJSON(data []byte) error {
 	var z big.Int
 	if _, ok := z.SetString(string(data[:]), 10); ok {
 		b.Int = z
@@ -28,25 +30,20 @@ func (b *PrimeTimeInt) UnmarshalJSON(data []byte) error {
 	} else {
 		return fmt.Errorf("Invalid number format")
 	}
-
 	return nil
 }
 
-type PrimeTimeResponse struct {
+type primeTimeResponse struct {
 	Method string `json:"method"`
 	Prime  bool   `json:"prime"`
 }
 
 type PrimeTimeServer struct {
-	BaseServer
+	server.BaseServer
 }
 
-func (request *PrimeTimeRequest) validRequest() bool {
-	if request.Method == nil || *request.Method != "isPrime" || request.Number == nil {
-		return false
-	}
-
-	return true
+func (r *primeTimeRequest) validRequest() bool {
+	return r.Method != nil && *r.Method == "isPrime" && r.Number != nil
 }
 
 func NewPrimeTimeServer() *PrimeTimeServer {
@@ -60,7 +57,6 @@ func isPrime(n *big.Int) bool {
 }
 
 func (PrimeTimeServer) handleConnection(conn net.Conn) {
-
 	log.Println("Connected with...")
 	log.Println(conn.RemoteAddr())
 
@@ -72,8 +68,7 @@ func (PrimeTimeServer) handleConnection(conn net.Conn) {
 		if err != nil {
 			break
 		}
-		req := PrimeTimeRequest{}
-
+		req := primeTimeRequest{}
 		err = json.Unmarshal(line, &req)
 		if err != nil || !req.validRequest() {
 			fmt.Println(req)
@@ -82,7 +77,7 @@ func (PrimeTimeServer) handleConnection(conn net.Conn) {
 			break
 		}
 		log.Println("Request: ", req)
-		resp := PrimeTimeResponse{Method: "isPrime", Prime: isPrime(&req.Number.Int)}
+		resp := primeTimeResponse{Method: "isPrime", Prime: isPrime(&req.Number.Int)}
 		respBytes, err := json.Marshal(resp)
 		respBytes = append(respBytes, '\n')
 		if err != nil {

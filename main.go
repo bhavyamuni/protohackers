@@ -3,36 +3,27 @@ package main
 import (
 	"log"
 
+	"github.com/BhavyaMuni/protohackers/budgetchat"
+	"github.com/BhavyaMuni/protohackers/echo"
 	"github.com/BhavyaMuni/protohackers/lineReversal"
-	"github.com/BhavyaMuni/protohackers/server"
+	"github.com/BhavyaMuni/protohackers/meanstoanend"
+	"github.com/BhavyaMuni/protohackers/mobinthemiddle"
+	"github.com/BhavyaMuni/protohackers/primetime"
 	"github.com/BhavyaMuni/protohackers/speedDaemon"
+	"github.com/BhavyaMuni/protohackers/unusualdatabase"
 )
 
 func main() {
 	log.Print("Starting servers...")
-	es := server.NewEchoServer()
-	go es.Start(":10000")
 
-	pts := server.NewPrimeTimeServer()
-	go pts.Start(":10001")
-
-	mtes := server.NewMeansToAnEndServer()
-	go mtes.Start(":10002")
-
-	bcs := server.NewBudgetChatServer()
-	go bcs.Start(":10003")
-
-	uds := server.NewUnusualDatabaseServer()
-	go uds.Start(":10004")
-
-	mims := server.NewMobInTheMiddleServer()
-	go mims.Start(":10005")
-
-	ssd := speedDaemon.NewSpeedDaemonServer()
-	go ssd.Start(":10006")
-
-	lrs := lineReversal.NewLineReversalServer()
-	go lrs.Start(":10007")
+	go echo.NewEchoServer().Start(":10000")
+	go primetime.NewPrimeTimeServer().Start(":10001")
+	go meanstoanend.NewMeansToAnEndServer().Start(":10002")
+	go budgetchat.NewBudgetChatServer().Start(":10003")
+	go unusualdatabase.NewUnusualDatabaseServer().Start(":10004")
+	go mobinthemiddle.NewMobInTheMiddleServer().Start(":10005")
+	go speedDaemon.NewSpeedDaemonServer().Start(":10006")
+	go lineReversal.NewLineReversalServer().Start(":10007")
 
 	select {}
 }
