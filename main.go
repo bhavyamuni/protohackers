@@ -9,7 +9,6 @@ import (
 	"github.com/BhavyaMuni/protohackers/meanstoanend"
 	"github.com/BhavyaMuni/protohackers/mobinthemiddle"
 	"github.com/BhavyaMuni/protohackers/primetime"
-	"github.com/BhavyaMuni/protohackers/speedDaemon"
 	"github.com/BhavyaMuni/protohackers/unusualdatabase"
 )
 

@@ -1,4 +1,4 @@
-package speedDaemon
+package speeddaemon
 
 import (
 	"bytes"
