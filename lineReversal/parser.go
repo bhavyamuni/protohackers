@@ -15,7 +15,9 @@ const (
 	AckMessageType     MessageType = "ack"
 )
 
-type Message interface{}
+type Message interface {
+	String() string
+}
 
 type ConnectMessage struct {
 	MessageType
@@ -30,6 +32,7 @@ type CloseMessage struct {
 type DataMessage struct {
 	MessageType
 	Session int64
+	Pos     int64
 	Data    string
 }
 
@@ -43,17 +46,20 @@ func (m *AckMessage) String() string {
 	return fmt.Sprintf("/ack/%d/%d/", m.Session, m.Length)
 }
 
+func (m *ConnectMessage) String() string {
+	return fmt.Sprintf("/connect/%d/", m.Session)
+}
+
 func (m *CloseMessage) String() string {
 	return fmt.Sprintf("/close/%d/", m.Session)
 }
 
 func (m *DataMessage) String() string {
-	return fmt.Sprintf("/data/%d/%s/", m.Session, m.Data)
+	return fmt.Sprintf("/data/%d/%d/%s/", m.Session, m.Pos, m.Data)
 }
 
 func ParseMessage(message string) (Message, error) {
 	messageChunks := SplitCommand(message)
-	fmt.Println("Message chunks:", messageChunks)
 	if len(messageChunks) < 2 {
 		return nil, fmt.Errorf("invalid message: %s", message)
 	}
@@ -82,11 +88,14 @@ func ParseMessage(message string) (Message, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		fmt.Println("chunks: ", messageChunks[4])
+		pos, err := strconv.ParseInt(messageChunks[3], 10, 64)
+		if err != nil {
+			return nil, err
+		}
 		return &DataMessage{
 			MessageType: DataMessageType,
 			Session:     session,
+			Pos:         pos,
 			Data:        messageChunks[4],
 		}, nil
 	case string(AckMessageType):
