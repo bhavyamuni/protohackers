@@ -16,8 +16,8 @@ func NewLineReversalServer() *LineReversalServer {
 }
 
 func (s *LineReversalServer) Start(port string) error {
-	// udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("fly-global-services%s", port))
-	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("127.0.0.1%s", port))
+	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("fly-global-services%s", port))
+	// udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("127.0.0.1%s", port))
 	if err != nil {
 		fmt.Println("Error resolving UDP address:", err)
 		return err
@@ -101,14 +101,6 @@ func (s *LineReversalServer) ackMessage(message *AckMessage, conn *net.UDPConn, 
 		return
 	}
 	sesh.incoming <- message
-}
-
-func CloseSession(session int64, conn *net.UDPConn, addr *net.UDPAddr) {
-	closeMessage := &CloseMessage{
-		Session: session,
-	}
-	closeMessageString := closeMessage.String()
-	conn.WriteToUDP([]byte(closeMessageString), addr)
 }
 
 func SendMessage(m Message, conn *net.UDPConn, addr *net.UDPAddr) error {

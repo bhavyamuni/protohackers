@@ -86,7 +86,7 @@ func SplitCommand(cmd string) []string {
 		current.WriteByte(c)
 	}
 	result = append(result, current.String())
-	return result[1 : len(result)-1]
+	return result
 }
 
 func encodeData(s string) string {
