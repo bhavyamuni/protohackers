@@ -1,4 +1,4 @@
-package lineReversal
+package linereversal
 
 import (
 	"net"
@@ -47,37 +47,48 @@ func (s *LCRPSession) handleConnect(_ *ConnectMessage) {
 	println("Connect message")
 }
 
-func (s *LCRPSession) handleClose(_ *CloseMessage) {
-	println("Close message")
+func (s *LCRPSession) handleClose(m *CloseMessage) {
+	SendMessage(m, s.conn, s.addr)
 }
 
-func (s *LCRPSession) handleAck(_ *AckMessage) {
-	println("ACK message")
+func (s *LCRPSession) handleAck(m *AckMessage) {
+	if m.Length > int64(len(s.dataSent)) {
+		close := &CloseMessage{Session: s.id}
+		SendMessage(close, s.conn, s.addr)
+	}
+
+	if m.Length < int64(len(s.dataSent)) {
+		retransMsg := &DataMessage{
+			Session: s.id,
+			Pos:     m.Length,
+			Data:    s.dataSent[m.Length:],
+		}
+		SendMessage(retransMsg, s.conn, s.addr)
+	}
 }
 
 func (s *LCRPSession) handleData(m *DataMessage) {
-	ack := &AckMessage{
+	ackMsg := &AckMessage{
 		Session: s.id,
 		Length:  int64(s.pos),
 	}
 
 	if m.Pos != s.pos {
-		SendMessage(ack, s.conn, s.addr)
+		SendMessage(ackMsg, s.conn, s.addr)
 		return
 	}
 
-	if m.Pos == s.pos {
-		sz := int64(len(m.Data))
-		ack.Length = sz
-		dataToSend := ReverseAllLines(m.Data)
-		dataMsg := &DataMessage{
-			Data:    dataToSend,
-			Pos:     sz,
-			Session: s.id,
-		}
-
-		s.pos += sz
-		s.dataSent += dataToSend
-		SendMessage(dataMsg, s.conn, s.addr)
+	sz := int64(len(m.Data))
+	ackMsg.Length = sz
+	dataToSend := ReverseAllLines(m.Data)
+	dataMsg := &DataMessage{
+		Data:    dataToSend,
+		Pos:     sz,
+		Session: s.id,
 	}
+
+	s.pos += sz
+	s.dataSent += dataToSend
+	SendMessage(ackMsg, s.conn, s.addr)
+	SendMessage(dataMsg, s.conn, s.addr)
 }

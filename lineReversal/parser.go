@@ -1,4 +1,4 @@
-package lineReversal
+package linereversal
 
 import (
 	"fmt"

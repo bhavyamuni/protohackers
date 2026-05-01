@@ -5,7 +5,7 @@ import (
 
 	"github.com/BhavyaMuni/protohackers/budgetchat"
 	"github.com/BhavyaMuni/protohackers/echo"
-	"github.com/BhavyaMuni/protohackers/lineReversal"
+	"github.com/BhavyaMuni/protohackers/linereversal"
 	"github.com/BhavyaMuni/protohackers/meanstoanend"
 	"github.com/BhavyaMuni/protohackers/mobinthemiddle"
 	"github.com/BhavyaMuni/protohackers/primetime"
@@ -23,7 +23,7 @@ func main() {
 	go unusualdatabase.NewUnusualDatabaseServer().Start(":10004")
 	go mobinthemiddle.NewMobInTheMiddleServer().Start(":10005")
 	go speeddaemon.NewSpeedDaemonServer().Start(":10006")
-	go lineReversal.NewLineReversalServer().Start(":10007")
+	go linereversal.NewLineReversalServer().Start(":10007")
 
 	select {}
 }

@@ -1,4 +1,4 @@
-package lineReversal
+package linereversal
 
 import (
 	"fmt"
@@ -65,7 +65,7 @@ func (s *LineReversalServer) handleMessage(message Message, conn *net.UDPConn, a
 }
 
 func (s *LineReversalServer) connectMessage(message *ConnectMessage, conn *net.UDPConn, addr *net.UDPAddr) {
-	key := fmt.Sprintf("%s-%d", addr, message.Session)
+	key := fmt.Sprintf("%d", message.Session)
 	sesh := NewSession(message.Session, addr, conn)
 	s.sessions[key] = sesh
 	sesh.incoming <- message
@@ -78,7 +78,7 @@ func (s *LineReversalServer) closeMessage(message *CloseMessage, conn *net.UDPCo
 }
 
 func (s *LineReversalServer) dataMessage(message *DataMessage, conn *net.UDPConn, addr *net.UDPAddr) {
-	key := fmt.Sprintf("%s-%d", addr, message.Session)
+	key := fmt.Sprintf("%d", message.Session)
 	sesh, exists := s.sessions[key]
 	if !exists {
 		close := &CloseMessage{
@@ -91,7 +91,7 @@ func (s *LineReversalServer) dataMessage(message *DataMessage, conn *net.UDPConn
 }
 
 func (s *LineReversalServer) ackMessage(message *AckMessage, conn *net.UDPConn, addr *net.UDPAddr) {
-	key := fmt.Sprintf("%s-%d", addr, message.Session)
+	key := fmt.Sprintf("%d", message.Session)
 	sesh, exists := s.sessions[key]
 	if !exists {
 		close := &CloseMessage{
