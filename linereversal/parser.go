@@ -44,7 +44,7 @@ func ParseMessage(message string) (Message, error) {
 			MessageType: DataMessageType,
 			Session:     session,
 			Pos:         pos,
-			Data:        messageChunks[4],
+			Data:        decodeData(messageChunks[4]),
 		}, nil
 	case string(AckMessageType):
 		session, err := strconv.ParseInt(messageChunks[2], 10, 64)
@@ -65,23 +65,17 @@ func ParseMessage(message string) (Message, error) {
 	}
 }
 
-// SplitCommand splits a command string by slashes while handling escaped slashes.
-// For example: "/connect/12345/" -> ["", "connect", "12345", ""]
-// And: "/connect/123\/45/" -> ["", "connect", "123/45", ""]
+// SplitCommand splits a command string by unescaped slashes, preserving escape sequences in segments.
 func SplitCommand(cmd string) []string {
 	var result []string
 	var current strings.Builder
-	escaped := false
 
 	for i := 0; i < len(cmd); i++ {
 		c := cmd[i]
-		if escaped {
+		if c == '\\' && i+1 < len(cmd) {
 			current.WriteByte(c)
-			escaped = false
-			continue
-		}
-		if c == '\\' {
-			escaped = true
+			i++
+			current.WriteByte(cmd[i])
 			continue
 		}
 		if c == '/' {
@@ -91,11 +85,30 @@ func SplitCommand(cmd string) []string {
 		}
 		current.WriteByte(c)
 	}
-	// Add the last segment
 	result = append(result, current.String())
+	return result[1 : len(result)-1]
+}
 
-	fmt.Println("Split: ", result)
-	return result
+func encodeData(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' || s[i] == '/' {
+			b.WriteByte('\\')
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+func decodeData(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			i++
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
 }
 
 func ReverseAllLines(s string) string {

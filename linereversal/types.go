@@ -51,5 +51,5 @@ func (m *CloseMessage) String() string {
 }
 
 func (m *DataMessage) String() string {
-	return fmt.Sprintf("/data/%d/%d/%s/", m.Session, m.Pos, m.Data)
+	return fmt.Sprintf("/data/%d/%d/%s/", m.Session, m.Pos, encodeData(m.Data))
 }

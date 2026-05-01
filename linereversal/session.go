@@ -7,25 +7,36 @@ import (
 // type Session interface{}
 
 type LCRPSession struct {
-	id       int64
-	dataSent string
-	pos      int64
-	addr     *net.UDPAddr
-	conn     *net.UDPConn
-	incoming chan Message
+	id        int64
+	dataSent  string
+	dataAcked int64
+	pos       int64
+	addr      *net.UDPAddr
+	conn      *net.UDPConn
+	incoming  chan Message
+	outgoing  chan Message
 }
 
 func NewSession(id int64, addr *net.UDPAddr, conn *net.UDPConn) *LCRPSession {
 	s := &LCRPSession{
-		id:       id,
-		pos:      0,
-		addr:     addr,
-		conn:     conn,
-		dataSent: "",
-		incoming: make(chan Message, 16),
+		id:        id,
+		pos:       0,
+		addr:      addr,
+		conn:      conn,
+		dataSent:  "",
+		dataAcked: 0,
+		incoming:  make(chan Message, 16),
+		outgoing:  make(chan Message),
 	}
 	go s.run()
+	go s.send()
 	return s
+}
+
+func (s *LCRPSession) send() {
+	for msg := range s.outgoing {
+		SendMessage(msg, s.conn, s.addr)
+	}
 }
 
 func (s *LCRPSession) run() {
@@ -44,17 +55,27 @@ func (s *LCRPSession) run() {
 }
 
 func (s *LCRPSession) handleConnect(_ *ConnectMessage) {
-	println("Connect message")
+	ackMsg := &AckMessage{Session: s.id, Length: 0}
+	s.outgoing <- ackMsg
 }
 
 func (s *LCRPSession) handleClose(m *CloseMessage) {
-	SendMessage(m, s.conn, s.addr)
+	s.outgoing <- m
 }
 
 func (s *LCRPSession) handleAck(m *AckMessage) {
+	if m.Length < s.dataAcked {
+		return
+	}
+
+	if m.Length == int64(len(s.dataSent)) {
+		s.dataAcked += int64(len(s.dataSent))
+		s.dataSent = ""
+	}
+
 	if m.Length > int64(len(s.dataSent)) {
 		close := &CloseMessage{Session: s.id}
-		SendMessage(close, s.conn, s.addr)
+		s.outgoing <- close
 	}
 
 	if m.Length < int64(len(s.dataSent)) {
@@ -63,7 +84,7 @@ func (s *LCRPSession) handleAck(m *AckMessage) {
 			Pos:     m.Length,
 			Data:    s.dataSent[m.Length:],
 		}
-		SendMessage(retransMsg, s.conn, s.addr)
+		s.outgoing <- retransMsg
 	}
 }
 
@@ -74,7 +95,7 @@ func (s *LCRPSession) handleData(m *DataMessage) {
 	}
 
 	if m.Pos != s.pos {
-		SendMessage(ackMsg, s.conn, s.addr)
+		s.outgoing <- ackMsg
 		return
 	}
 
@@ -89,6 +110,6 @@ func (s *LCRPSession) handleData(m *DataMessage) {
 
 	s.pos += sz
 	s.dataSent += dataToSend
-	SendMessage(ackMsg, s.conn, s.addr)
-	SendMessage(dataMsg, s.conn, s.addr)
+	s.outgoing <- ackMsg
+	s.outgoing <- dataMsg
 }
