@@ -5,10 +5,7 @@ FROM golang:${GO_VERSION}-bookworm as builder
 WORKDIR /usr/src/app
 COPY go.mod ./
 RUN go mod download && go mod verify
-COPY server/ ./server/
-COPY speedDaemon/ ./speedDaemon/
-COPY lineReversal/ ./lineReversal/
-COPY main.go .
+COPY . .
 RUN go build -v -o /run-app .
 
 
