@@ -1,8 +1,13 @@
 package linereversal
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type MessageType string
+
+const RetransmissionTimeout = 3 * time.Second
 
 const (
 	ConnectMessageType MessageType = "connect"

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 )
 
 // type Session interface{}
@@ -41,11 +42,20 @@ func NewSession(id int64, addr *net.UDPAddr, conn *net.UDPConn) *LCRPSession {
 }
 
 func (s *LCRPSession) send() {
-	for msg := range s.outgoing {
-		SendMessage(msg, s.conn, s.addr)
+	timer := time.NewTimer(60 * time.Second)
+	var lastMsg Message = nil
+	for {
+		select {
+		case msg := <-s.outgoing:
+			SendMessage(msg, s.conn, s.addr)
+			lastMsg = msg
+			timer.Reset(RetransmissionTimeout)
+		case <-timer.C:
+			SendMessage(lastMsg, s.conn, s.addr)
+			timer.Reset(RetransmissionTimeout)
+		}
 	}
 }
-
 func (s *LCRPSession) application() {
 	currBuf := ""
 	for data := range s.dataRecvBuffer {
