@@ -23,21 +23,21 @@ primary_region = 'yyz'
 [[services]]
     protocol = 'tcp'
     internal_port = 10001
-    
+
     [[services.ports]]
     port = 10001
 
 [[services]]
     protocol = 'tcp'
     internal_port = 10002
-    
+
     [[services.ports]]
         port = 10002
 
 [[services]]
     protocol = 'tcp'
     internal_port = 10003
-    
+
     [[services.ports]]
         port = 10003
 

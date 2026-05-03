@@ -51,7 +51,7 @@ func (s *LineReversalServer) Start(port string) error {
 }
 
 func (s *LineReversalServer) handleMessage(message Message, conn *net.UDPConn, addr *net.UDPAddr) {
-	fmt.Println("Received message:", message, "from", addr)
+	fmt.Printf("Received message: %q from %v\n", message.String(), addr)
 	switch message := message.(type) {
 	case *ConnectMessage:
 		s.connectMessage(message, conn, addr)
@@ -66,7 +66,10 @@ func (s *LineReversalServer) handleMessage(message Message, conn *net.UDPConn, a
 
 func (s *LineReversalServer) connectMessage(message *ConnectMessage, conn *net.UDPConn, addr *net.UDPAddr) {
 	key := fmt.Sprintf("%d", message.Session)
-	sesh := NewSession(message.Session, addr, conn)
+	sesh, exists := s.sessions[key]
+	if !exists {
+		sesh = NewSession(message.Session, addr, conn)
+	}
 	s.sessions[key] = sesh
 	sesh.incoming <- message
 }
@@ -104,9 +107,10 @@ func (s *LineReversalServer) ackMessage(message *AckMessage, conn *net.UDPConn, 
 }
 
 func SendMessage(m Message, conn *net.UDPConn, addr *net.UDPAddr) error {
+	fmt.Printf("Sending message: %q to %v\n", m.String(), addr)
 	_, err := conn.WriteToUDP([]byte(m.String()), addr)
 	if err != nil {
-		return fmt.Errorf("Error writing message %s to conn %s", m.String(), addr)
+		return fmt.Errorf("Error writing message %q to conn %s", m.String(), addr)
 	}
 	return nil
 }

@@ -1,35 +1,42 @@
 package linereversal
 
 import (
+	"fmt"
 	"net"
+	"strings"
 )
 
 // type Session interface{}
 
 type LCRPSession struct {
-	id        int64
-	dataSent  string
-	dataAcked int64
-	pos       int64
-	addr      *net.UDPAddr
-	conn      *net.UDPConn
-	incoming  chan Message
-	outgoing  chan Message
+	id             int64
+	dataSentBuffer string
+	dataSent       int64
+	dataAcked      int64
+	dataRecvd      int64
+	addr           *net.UDPAddr
+	conn           *net.UDPConn
+	dataRecvBuffer chan string
+	incoming       chan Message
+	outgoing       chan Message
 }
 
 func NewSession(id int64, addr *net.UDPAddr, conn *net.UDPConn) *LCRPSession {
 	s := &LCRPSession{
-		id:        id,
-		pos:       0,
-		addr:      addr,
-		conn:      conn,
-		dataSent:  "",
-		dataAcked: 0,
-		incoming:  make(chan Message, 16),
-		outgoing:  make(chan Message),
+		id:             id,
+		addr:           addr,
+		conn:           conn,
+		dataRecvBuffer: make(chan string),
+		dataSentBuffer: "",
+		dataSent:       0,
+		dataAcked:      0,
+		dataRecvd:      0,
+		incoming:       make(chan Message),
+		outgoing:       make(chan Message),
 	}
 	go s.run()
 	go s.send()
+	go s.application()
 	return s
 }
 
@@ -39,8 +46,31 @@ func (s *LCRPSession) send() {
 	}
 }
 
+func (s *LCRPSession) application() {
+	currBuf := ""
+	for data := range s.dataRecvBuffer {
+		for i := strings.Index(data, "\n"); i != -1; {
+			dataToSend := ReverseAllLines(currBuf + data[:i+1])
+			dataMsg := &DataMessage{
+				Data:    dataToSend,
+				Pos:     s.dataSent,
+				Session: s.id,
+			}
+
+			s.dataSent += int64(len(dataToSend))
+			s.dataSentBuffer += dataToSend
+			s.outgoing <- dataMsg
+			currBuf = ""
+			data = data[i+1:]
+			i = strings.Index(data, "\n")
+		}
+		currBuf += string(data)
+	}
+}
+
 func (s *LCRPSession) run() {
 	for msg := range s.incoming {
+		fmt.Printf("Handling message: %q from %v\n", msg.String(), s.addr)
 		switch msg := msg.(type) {
 		case *ConnectMessage:
 			s.handleConnect(msg)
@@ -68,21 +98,18 @@ func (s *LCRPSession) handleAck(m *AckMessage) {
 		return
 	}
 
-	if m.Length == int64(len(s.dataSent)) {
-		s.dataAcked += int64(len(s.dataSent))
-		s.dataSent = ""
-	}
-
-	if m.Length > int64(len(s.dataSent)) {
+	if m.Length == s.dataSent {
+		s.dataAcked += m.Length
+		// s.dataSentBuffer = ""
+	} else if m.Length > s.dataSent {
 		close := &CloseMessage{Session: s.id}
 		s.outgoing <- close
-	}
-
-	if m.Length < int64(len(s.dataSent)) {
+	} else if m.Length < s.dataSent {
+		s.dataAcked += m.Length
 		retransMsg := &DataMessage{
 			Session: s.id,
 			Pos:     m.Length,
-			Data:    s.dataSent[m.Length:],
+			Data:    s.dataSentBuffer[m.Length:],
 		}
 		s.outgoing <- retransMsg
 	}
@@ -91,25 +118,17 @@ func (s *LCRPSession) handleAck(m *AckMessage) {
 func (s *LCRPSession) handleData(m *DataMessage) {
 	ackMsg := &AckMessage{
 		Session: s.id,
-		Length:  int64(s.pos),
+		Length:  int64(s.dataRecvd),
 	}
 
-	if m.Pos != s.pos {
+	if m.Pos != s.dataRecvd {
 		s.outgoing <- ackMsg
 		return
 	}
 
 	sz := int64(len(m.Data))
 	ackMsg.Length = sz
-	dataToSend := ReverseAllLines(m.Data)
-	dataMsg := &DataMessage{
-		Data:    dataToSend,
-		Pos:     sz,
-		Session: s.id,
-	}
-
-	s.pos += sz
-	s.dataSent += dataToSend
+	s.dataRecvd += sz
 	s.outgoing <- ackMsg
-	s.outgoing <- dataMsg
+	s.dataRecvBuffer <- m.Data
 }
