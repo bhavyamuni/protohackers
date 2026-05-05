@@ -39,7 +39,6 @@ func NewSession(id int64, addr *net.UDPAddr, conn *net.UDPConn) *LCRPSession {
 		retransTimer:   time.NewTimer(RetransmissionTimeout),
 		expiryTimer:    time.NewTimer(ExpiryTimeout),
 	}
-	s.retransTimer.Stop()
 	go s.run()
 	go s.send()
 	go s.application()
@@ -51,15 +50,18 @@ func (s *LCRPSession) send() {
 	for {
 		select {
 		case msg := <-s.outgoing:
-			SendMessage(msg, s.conn, s.addr)
+			//max 1000 bytes
 			switch msg.(type) {
 			case *DataMessage:
+
 				lastMsg = msg
+
 				s.retransTimer.Reset(RetransmissionTimeout)
 			case *CloseMessage:
 				s.retransTimer.Stop()
 				s.expiryTimer.Stop()
 			}
+			SendMessage(msg, s.conn, s.addr)
 		case <-s.retransTimer.C:
 			// Retransmit message
 			if lastMsg != nil {
@@ -75,18 +77,13 @@ func (s *LCRPSession) application() {
 	currBuf := &strings.Builder{}
 	for data := range s.dataRecvBuffer {
 		currBuf.WriteString(data)
-		i := strings.Index(currBuf.String(), "\n")
-		for i != -1 {
+		for i := strings.Index(currBuf.String(), "\n"); i != -1; i = strings.Index(currBuf.String(), "\n") {
 			dataToSend := ReverseAllLines(currBuf.String()[:i+1])
 			remainingData := currBuf.String()[i+1:]
-			dataMsg := &DataMessage{
-				Data:    dataToSend,
-				Pos:     s.dataSent,
-				Session: s.id,
-			}
+
+			s.batchDataMsg(dataToSend, s.dataSent)
 			s.dataSent += int64(len(dataToSend))
 			s.dataSentBuffer += dataToSend
-			s.outgoing <- dataMsg
 			currBuf.Reset()
 			currBuf.WriteString(remainingData)
 			i = strings.Index(currBuf.String(), "\n")
@@ -140,12 +137,7 @@ func (s *LCRPSession) handleAck(m *AckMessage) {
 		s.outgoing <- close
 	} else if m.Length < s.dataSent {
 		s.dataAcked += m.Length
-		retransMsg := &DataMessage{
-			Session: s.id,
-			Pos:     m.Length,
-			Data:    s.dataSentBuffer[m.Length:],
-		}
-		s.outgoing <- retransMsg
+		s.batchDataMsg(s.dataSentBuffer[m.Length:], m.Length)
 	}
 }
 
@@ -165,4 +157,24 @@ func (s *LCRPSession) handleData(m *DataMessage) {
 	ackMsg.Length = s.dataRecvd
 	s.outgoing <- ackMsg
 	s.dataRecvBuffer <- m.Data
+}
+
+func (s *LCRPSession) batchDataMsg(msg string, pos int64) {
+	if len(msg) > 950 {
+		dataMsg := &DataMessage{
+			Session: s.id,
+			Pos:     pos,
+			Data:    msg[:950],
+		}
+		s.outgoing <- dataMsg
+		s.batchDataMsg(msg[950:], pos+950)
+	} else {
+		dataMsg := &DataMessage{
+			Session: s.id,
+			Pos:     pos,
+			Data:    msg,
+		}
+		s.outgoing <- dataMsg
+	}
+
 }
