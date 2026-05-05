@@ -7,51 +7,58 @@ import (
 )
 
 func ParseMessage(message string) (Message, error) {
-	messageChunks := SplitCommand(message)
-	if len(messageChunks) < 2 {
+	messageChunks := strings.Split(message, "/")
+	if len(messageChunks) < 4 {
 		return nil, fmt.Errorf("invalid message: %s", message)
 	}
-	messageType := messageChunks[1]
+	messageChunks = messageChunks[1 : len(messageChunks)-1]
+	messageType := messageChunks[0]
+	session, err := strconv.ParseInt(messageChunks[1], 10, 32)
+	if err != nil {
+		return nil, err
+	}
+
 	switch messageType {
 	case string(ConnectMessageType):
-		session, err := strconv.ParseInt(messageChunks[2], 10, 64)
-		if err != nil {
-			return nil, err
+		if len(messageChunks) != 2 {
+			return nil, fmt.Errorf("Validation failed for message %s", message)
 		}
 		return &ConnectMessage{
 			MessageType: ConnectMessageType,
 			Session:     session,
 		}, nil
 	case string(CloseMessageType):
-		session, err := strconv.ParseInt(messageChunks[2], 10, 64)
-		if err != nil {
-			return nil, err
+		if len(messageChunks) != 2 {
+			return nil, fmt.Errorf("Validation failed for message %s", message)
 		}
 		return &CloseMessage{
 			MessageType: CloseMessageType,
 			Session:     session,
 		}, nil
 	case string(DataMessageType):
-		session, err := strconv.ParseInt(messageChunks[2], 10, 64)
+		if len(messageChunks) < 4 {
+			return nil, fmt.Errorf("invalid data message: %s", message)
+		}
+		pos, err := strconv.ParseInt(messageChunks[2], 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		pos, err := strconv.ParseInt(messageChunks[3], 10, 64)
+		rawData := strings.Join(messageChunks[3:], "/")
+		decoded, err := decodeData(rawData)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Validation failed for message %s", message)
 		}
 		return &DataMessage{
 			MessageType: DataMessageType,
 			Session:     session,
 			Pos:         pos,
-			Data:        decodeData(messageChunks[4]),
+			Data:        decoded,
 		}, nil
 	case string(AckMessageType):
-		session, err := strconv.ParseInt(messageChunks[2], 10, 64)
-		if err != nil {
-			return nil, err
+		if len(messageChunks) != 3 {
+			return nil, fmt.Errorf("invalid data message: %s", message)
 		}
-		length, err := strconv.ParseInt(messageChunks[3], 10, 64)
+		length, err := strconv.ParseInt(messageChunks[2], 10, 64)
 		if err != nil {
 			return nil, err
 		}
@@ -65,30 +72,6 @@ func ParseMessage(message string) (Message, error) {
 	}
 }
 
-// SplitCommand splits a command string by unescaped slashes, preserving escape sequences in segments.
-func SplitCommand(cmd string) []string {
-	var result []string
-	var current strings.Builder
-
-	for i := 0; i < len(cmd); i++ {
-		c := cmd[i]
-		if c == '\\' && i+1 < len(cmd) {
-			current.WriteByte(c)
-			i++
-			current.WriteByte(cmd[i])
-			continue
-		}
-		if c == '/' {
-			result = append(result, current.String())
-			current.Reset()
-			continue
-		}
-		current.WriteByte(c)
-	}
-	result = append(result, current.String())
-	return result
-}
-
 func encodeData(s string) string {
 	var b strings.Builder
 	for i := 0; i < len(s); i++ {
@@ -100,15 +83,24 @@ func encodeData(s string) string {
 	return b.String()
 }
 
-func decodeData(s string) string {
+func decodeData(s string) (string, error) {
 	var b strings.Builder
 	for i := 0; i < len(s); i++ {
-		if s[i] == '\\' && i+1 < len(s) {
+		if s[i] == '/' {
+			return b.String(), fmt.Errorf("Extra characters exist, this is a malformed packet")
+		}
+		if s[i] == '\\' {
+			if i+1 >= len(s) {
+				return b.String(), fmt.Errorf("dangling \\ in data, malformed packet")
+			}
+			if s[i+1] != '\\' && s[i+1] != '/' {
+				return b.String(), fmt.Errorf("invalid escape \\%c in data, malformed packet", s[i+1])
+			}
 			i++
 		}
 		b.WriteByte(s[i])
 	}
-	return b.String()
+	return b.String(), nil
 }
 
 func ReverseAllLines(s string) string {

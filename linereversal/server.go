@@ -76,7 +76,14 @@ func (s *LineReversalServer) connectMessage(message *ConnectMessage, conn *net.U
 
 func (s *LineReversalServer) closeMessage(message *CloseMessage, conn *net.UDPConn, addr *net.UDPAddr) {
 	key := fmt.Sprintf("%d", message.Session)
-	sesh := s.sessions[key]
+	sesh, exists := s.sessions[key]
+	if !exists {
+		close := &CloseMessage{
+			Session: message.Session,
+		}
+		SendMessage(close, conn, addr)
+		return
+	}
 	sesh.incoming <- message
 }
 
