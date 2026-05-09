@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-// type Session interface{}
-
 type LCRPSession struct {
 	id             int64
 	dataSentBuffer string
@@ -50,12 +48,9 @@ func (s *LCRPSession) send() {
 	for {
 		select {
 		case msg := <-s.outgoing:
-			//max 1000 bytes
 			switch msg.(type) {
 			case *DataMessage:
-
 				lastMsg = msg
-
 				s.retransTimer.Reset(RetransmissionTimeout)
 			case *CloseMessage:
 				s.retransTimer.Stop()
@@ -128,15 +123,15 @@ func (s *LCRPSession) handleAck(m *AckMessage) {
 		return
 	}
 
-	if m.Length == s.dataSent {
-		s.dataAcked += m.Length
-		s.retransTimer.Stop()
-		// s.dataSentBuffer = ""
-	} else if m.Length > s.dataSent {
+	if m.Length > s.dataSent {
 		close := &CloseMessage{Session: s.id}
 		s.outgoing <- close
-	} else if m.Length < s.dataSent {
-		s.dataAcked += m.Length
+		return
+	}
+
+	s.dataAcked += m.Length
+	s.retransTimer.Stop()
+	if m.Length < s.dataSent {
 		s.batchDataMsg(s.dataSentBuffer[m.Length:], m.Length)
 	}
 }
